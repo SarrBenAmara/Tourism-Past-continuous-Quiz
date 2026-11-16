@@ -96,7 +96,7 @@ function Controller({ code, room, user, connected }) {
     const t = { ...teams }
     const add = {}
     missing.forEach((pl) => {
-      t[pl.uid] = add[pl.uid] = smallestTeam(t, meta.teamCount)
+      t[pl.uid] = add[pl.uid] = meta.mode === 'individual' ? 'A' : smallestTeam(t, meta.teamCount)
     })
     host.assignTeams(code, add).catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -165,6 +165,21 @@ function Controller({ code, room, user, connected }) {
   }, [phase])
 
   // ---- top players -------------------------------------------------------------------
+  const rankedPlayers = useMemo(() => {
+    const list = Object.keys(teams)
+      .filter((uid) => room.players?.[uid])
+      .map((uid) => ({ uid, name: room.players[uid].name, team: teams[uid], total: room.scores?.[uid]?.total || 0, correct: room.scores?.[uid]?.correct || 0 }))
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+    let rank = 0
+    let prev = null
+    list.forEach((p, i) => {
+      if (p.total !== prev) rank = i + 1
+      p.rank = rank
+      prev = p.total
+    })
+    return list
+  }, [teams, room.players, room.scores])
+
   const topPlayers = useMemo(
     () =>
       Object.entries(room.scores || {})
@@ -187,7 +202,8 @@ function Controller({ code, room, user, connected }) {
     start: () =>
       run(async () => {
         if (!bank) throw new Error('Your question bank is not loaded. Open the Question Bank from the dashboard.')
-        if (phase === 'lobby') await host.generateTeams(code, players.map((p) => p.uid), meta.teamCount)
+        if (meta.mode === 'individual') await host.assignIndividual(code, players.map((p) => p.uid))
+        else if (phase === 'lobby') await host.generateTeams(code, players.map((p) => p.uid), meta.teamCount)
         await host.startGame(code, bank, meta)
       }),
     remove: (p, block) =>
@@ -246,9 +262,9 @@ function Controller({ code, room, user, connected }) {
     )
   } else if (phase === 'leaderboard') {
     persona = 'point'
-    body = <LeaderboardView board={room.teamBoard} meta={meta} topPlayers={topPlayers} state={state} />
+    body = <LeaderboardView board={room.teamBoard} meta={meta} topPlayers={topPlayers} state={state} rankedPlayers={rankedPlayers} />
   } else if (phase === 'ended') {
-    body = <FinalView board={room.teamBoard} meta={meta} topPlayers={topPlayers} />
+    body = <FinalView board={room.teamBoard} meta={meta} topPlayers={topPlayers} rankedPlayers={rankedPlayers} />
   } else if (question) {
     persona = 'point'
     body = (
@@ -260,6 +276,7 @@ function Controller({ code, room, user, connected }) {
         answered={answered}
         totalPlayers={assigned.length}
         remainingMs={remainingMs}
+        rankedPlayers={rankedPlayers}
       />
     )
   } else {
@@ -349,7 +366,7 @@ function Dock({ phase, busy, isLast, meta, actions, hasPassage }) {
       )}
       {phase === 'ended' ? (
         <>
-          <Btn size="sm" color="gold" icon={RotateCcw} onClick={actions.restart} disabled={busy}>Play again (same teams)</Btn>
+          <Btn size="sm" color="gold" icon={RotateCcw} onClick={actions.restart} disabled={busy}>{meta.mode === 'individual' ? 'Play again' : 'Play again (same teams)'}</Btn>
           <Btn size="sm" icon={Play} onClick={actions.newRoom} disabled={busy}>New room</Btn>
           <Btn size="sm" color="dark" icon={LayoutDashboard} onClick={() => navigate('/host')}>Dashboard</Btn>
         </>

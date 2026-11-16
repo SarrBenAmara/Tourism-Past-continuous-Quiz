@@ -50,6 +50,9 @@ function PhoneFrame({ children, team = 'B', pts = 120 }) {
 }
 
 const noop = () => {}
+const solo = { ...meta, mode: 'individual' }
+const ranked = players.map((p, i) => ({ ...p, team: 'A', total: [980, 860, 860, 720, 690, 600, 540, 510, 400, 350][i] ?? 200, correct: 9 - Math.min(i, 8) }))
+ranked.forEach((p, i, a) => (p.rank = i > 0 && a[i - 1].total === p.total ? a[i - 1].rank : i + 1))
 
 export default function PreviewGallery({ name }) {
   const now = { qNumber: 5, total: 36, totalMs: 20000 }
@@ -60,6 +63,27 @@ export default function PreviewGallery({ name }) {
       return <Desk persona="hold" pad={24}><LobbyView code="482731" meta={{ ...meta, teamCount: 3 }} phase="lobby" players={players} teams={{}} bankCount={36} onSetting={noop} onGenerate={noop} onStart={noop} onRemove={noop} /></Desk>
     case 'teams':
       return <Desk persona="hold" pad={24}><LobbyView code="482731" meta={meta} phase="teams" players={players} teams={teams} bankCount={36} onSetting={noop} onGenerate={noop} onStart={noop} onRemove={noop} onBackToSettings={noop} /></Desk>
+    case 'lobby-solo':
+      return <Desk persona="hold" pad={24}><LobbyView code="482731" meta={solo} phase="lobby" players={players} teams={{}} bankCount={36} onSetting={noop} onGenerate={noop} onStart={noop} onRemove={noop} /></Desk>
+    case 'question-solo':
+      return <Desk persona="point"><QuestionView question={grammarQ} state={{ ...now, phase: 'question' }} meta={solo} board={board} answered={12} totalPlayers={18} remainingMs={14200} rankedPlayers={ranked} /></Desk>
+    case 'leaderboard-solo':
+      return <Desk persona="point"><LeaderboardView board={board} meta={solo} state={now} rankedPlayers={ranked} /></Desk>
+    case 'final-solo':
+      return <Desk persona="hold"><FinalView board={board} meta={solo} rankedPlayers={ranked} /></Desk>
+    case 'phone-solo':
+      return (
+        <Scene mobile>
+          <main className="phone" style={{ paddingTop: 54 }}>
+            <Logo variant="phone" />
+            <div className="phone__pills">
+              <span className="pill"><span className="pill__icon"><Users style={{ width: '60%' }} /></span><span>Yasmine</span></span>
+              <span className="pill pill--gold"><Trophy aria-hidden="true" /><span>980 pts</span></span>
+            </div>
+            <div className="status-card"><div className="status-card__icon"><Trophy /></div><h2>Leaderboard</h2><p style={{ fontSize: 22 }}>You are <b style={{ color: 'var(--purple)', fontSize: '1.5em' }}>#3</b> of 18</p><p>Your points: <b>860</b> · correct answers: <b>7</b></p></div>
+          </main>
+        </Scene>
+      )
     case 'question':
       return <Desk persona="point"><QuestionView question={grammarQ} state={{ ...now, phase: 'question' }} meta={meta} board={board} answered={12} totalPlayers={18} remainingMs={14200} /></Desk>
     case 'reading':
@@ -93,7 +117,7 @@ export default function PreviewGallery({ name }) {
         <Scene mobile>
           <main className="phone">
             <ul className="status-card" style={{ textAlign: 'left' }}>
-              {['menu', 'lobby', 'teams', 'question', 'reading', 'reveal', 'leaderboard', 'final', 'phone-wait', 'phone-team', 'phone-answer', 'phone-sent', 'phone-correct', 'phone-wrong'].map((n) => (
+              {['menu', 'lobby', 'lobby-solo', 'question-solo', 'leaderboard-solo', 'final-solo', 'phone-solo', 'teams', 'question', 'reading', 'reveal', 'leaderboard', 'final', 'phone-wait', 'phone-team', 'phone-answer', 'phone-sent', 'phone-correct', 'phone-wrong'].map((n) => (
                 <li key={n}><a href={`#/__preview/${n}`}>{n}</a></li>
               ))}
               <li><Users style={{ width: 16 }} /> dev only</li>

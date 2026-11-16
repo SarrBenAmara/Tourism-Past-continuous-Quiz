@@ -245,3 +245,31 @@ export function buildGameQuestions(bank, { categories, shuffleOrder = false, lim
   if (limit > 0) ordered = ordered.slice(0, limit)
   return ordered.map((q) => ({ ...q, passage: q.passageId ? bank.passages[q.passageId] : null }))
 }
+
+/**
+ * Individual ranking. Every scored player (anyone with a team entry – in Individual Mode
+ * everyone is quietly placed in group "A") gets a rank; ties share a rank.
+ * @returns {{ranks: Record<string, number>, count: number}}
+ */
+export function playerRanks(scores, teams) {
+  const list = Object.keys(teams || {})
+    .map((uid) => ({ uid, total: scores?.[uid]?.total || 0 }))
+    .sort((a, b) => b.total - a.total || a.uid.localeCompare(b.uid))
+  const ranks = {}
+  let rank = 0
+  let prev = null
+  list.forEach((p, i) => {
+    if (p.total !== prev) rank = i + 1
+    ranks[p.uid] = rank
+    prev = p.total
+  })
+  return { ranks, count: list.length }
+}
+
+export const RANK_COLORS = [
+  { color: '#ffb800', dark: '#a25a00' }, // 1st – gold
+  { color: '#8fa3c7', dark: '#3f4f73' }, // 2nd – silver
+  { color: '#e0803a', dark: '#7a3a10' }, // 3rd – bronze
+  { color: '#a64dff', dark: '#4a1291' }, // others – purple
+]
+export const rankColor = (rank) => RANK_COLORS[Math.min(Math.max(rank, 1), 4) - 1]

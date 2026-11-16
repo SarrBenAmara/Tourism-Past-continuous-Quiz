@@ -118,3 +118,12 @@ describe('question bank', () => {
     expect(() => validateBank({ questions: [{ category: 'grammar', text: 'x', options: ['a', 'b', 'c', 'd'], answer: 4 }] })).toThrow(/answer/)
   })
 })
+
+import { playerRanks } from './gameLogic.js'
+describe('individual ranking', () => {
+  it('ranks players with ties sharing a place', () => {
+    const { ranks, count } = playerRanks({ a: { total: 300 }, b: { total: 500 }, c: { total: 300 } }, { a: 'A', b: 'A', c: 'A', d: 'A' })
+    expect(count).toBe(4)
+    expect(ranks).toEqual({ b: 1, a: 2, c: 2, d: 4 })
+  })
+})

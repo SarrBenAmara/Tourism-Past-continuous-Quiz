@@ -1,11 +1,11 @@
 import { BookOpen, Lightbulb, Hourglass } from 'lucide-react'
 import { Logo } from '../../components/Brand.jsx'
-import { AnswerTile, TeamChip, TimerPill } from '../../components/ui.jsx'
+import { AnswerTile, TeamChip, LeaderChip, TimerPill } from '../../components/ui.jsx'
 import { CATEGORIES, teamIdsFor } from '../../lib/gameLogic.js'
 import postcard from '../../assets/img/postcard-santorini.webp'
 
 /** Projector question / reveal screen (Screens 5 and 7). Presentational only. */
-export default function QuestionView({ question, state, meta, board, answered, totalPlayers, remainingMs }) {
+export default function QuestionView({ question, state, meta, board, answered, totalPlayers, remainingMs, rankedPlayers = [] }) {
   const phase = state.phase
   const revealed = phase === 'reveal'
   const counts = state.reveal?.counts
@@ -30,11 +30,21 @@ export default function QuestionView({ question, state, meta, board, answered, t
   return (
     <>
       <Logo variant="bar" />
-      <div className="team-row" style={{ '--n': ids.length, marginTop: 12, maxWidth: 1180 }}>
-        {ids.map((id) => (
-          <TeamChip key={id} id={id} points={avg ? board?.[id]?.avg ?? 0 : board?.[id]?.total ?? 0} sub={avg ? 'avg' : null} />
-        ))}
-      </div>
+      {meta.mode === 'individual' ? (
+        rankedPlayers.length > 0 && (
+          <div className="team-row" style={{ '--n': 4, marginTop: 12, maxWidth: 1180 }} aria-label="Top players">
+            {rankedPlayers.slice(0, 4).map((p) => (
+              <LeaderChip key={p.uid} rank={p.rank} name={p.name} points={p.total} />
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="team-row" style={{ '--n': ids.length, marginTop: 12, maxWidth: 1180 }}>
+          {ids.map((id) => (
+            <TeamChip key={id} id={id} points={avg ? board?.[id]?.avg ?? 0 : board?.[id]?.total ?? 0} sub={avg ? 'avg' : null} />
+          ))}
+        </div>
+      )}
 
       <section className={`panel qpanel ${question.passage ? 'qpanel--reading' : ''}`} style={{ marginTop: 12, maxWidth: 1180 }}>
         <div className="qpanel__bar">

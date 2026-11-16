@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Users, Trophy, Target, Check, X, Eye, Pause, Hourglass, WifiOff, LogOut, Sparkles, MonitorSmartphone } from 'lucide-react'
+import { Users, User, Trophy, Target, Check, X, Eye, Pause, Hourglass, WifiOff, LogOut, Sparkles, MonitorSmartphone } from 'lucide-react'
 import { Scene, Logo, Trophy as TrophyArt } from '../../components/Brand.jsx'
 import { CornerTools, TeamIcon, teamVars, Spinner, fireConfetti, Btn } from '../../components/ui.jsx'
 import { useAuthUser, useDbValue, useTicker, useConnected } from '../../hooks/useFirebase.js'
@@ -89,14 +89,17 @@ function Player({ code, uid }) {
       fireConfetti(false)
     } else play('wrong')
   }, [phase, resultKey, myResult.value])
+  const solo = meta.value?.mode === 'individual'
+  const myRank = state?.ranks?.[uid]
   const endedOnce = useRef(false)
   useEffect(() => {
-    if (phase === 'ended' && !endedOnce.current && teamId && board.value?.[teamId]?.rank === 1) {
+    const won = solo ? myRank === 1 : teamId && board.value?.[teamId]?.rank === 1
+    if (phase === 'ended' && !endedOnce.current && won) {
       endedOnce.current = true
       play('fanfare')
       fireConfetti(true)
     }
-  }, [phase, teamId, board.value])
+  }, [phase, teamId, board.value, solo, myRank])
 
   const loading = meta.loading || stateV.loading || me.loading
   if (loading) return <PhoneShell><Spinner label="Joining" /></PhoneShell>
@@ -131,14 +134,15 @@ function Player({ code, uid }) {
   }
 
   const avg = meta.value.rankBy === 'average'
-  const teamPts = teamId ? (avg ? board.value?.[teamId]?.avg : board.value?.[teamId]?.total) ?? 0 : null
+  const showTeam = teamId && !solo
+  const teamPts = showTeam ? (avg ? board.value?.[teamId]?.avg : board.value?.[teamId]?.total) ?? 0 : null
   const header = (
     <div className="phone__pills">
-      <span className="pill" style={teamId ? teamVars(teamId) : undefined}>
-        <span className="pill__icon" style={teamId ? { background: 'var(--tc)' } : undefined}>
-          {teamId ? <TeamIcon team={teamId} style={{ width: '60%', height: '60%' }} /> : <Users style={{ width: '60%' }} />}
+      <span className="pill" style={showTeam ? teamVars(teamId) : undefined}>
+        <span className="pill__icon" style={showTeam ? { background: 'var(--tc)' } : undefined}>
+          {showTeam ? <TeamIcon team={teamId} style={{ width: '60%', height: '60%' }} /> : <User style={{ width: '60%' }} />}
         </span>
-        <span>{teamId ? TEAMS[teamId].short : me.value.name}</span>
+        <span>{showTeam ? TEAMS[teamId].short : me.value.name}</span>
       </span>
       <span className="pill pill--gold">
         <Trophy aria-hidden="true" />
@@ -177,7 +181,9 @@ function Player({ code, uid }) {
       )
       break
     case 'teams':
-      content = teamId ? (
+      content = solo ? (
+        <Message icon={Sparkles} title="Get ready!" text="You're playing on your own this time. Look at the classroom screen." />
+      ) : teamId ? (
         <div className="status-card" style={teamVars(teamId)}>
           <p style={{ marginTop: 0 }}>Your team is…</p>
           <div className="team-badge" style={{ margin: '10px 0' }}>
@@ -255,6 +261,29 @@ function Player({ code, uid }) {
     }
     case 'leaderboard':
     case 'ended': {
+      if (solo) {
+        const win = phase === 'ended' && myRank === 1
+        content = (
+          <div className="status-card">
+            {win ? <TrophyArt style={{ width: 110 }} /> : <div className="status-card__icon"><Trophy /></div>}
+            <h2>{phase === 'ended' ? (win ? 'You won! 🏆' : 'Game over!') : 'Leaderboard'}</h2>
+            {myRank ? (
+              <p style={{ fontSize: 22 }}>
+                You are <b style={{ color: 'var(--purple)', fontSize: '1.5em' }}>#{myRank}</b> of {state.rankCount}
+              </p>
+            ) : (
+              <p>Look at the classroom screen!</p>
+            )}
+            <p>Your points: <b>{score.value?.total ?? 0}</b> · correct answers: <b>{score.value?.correct ?? 0}</b></p>
+            {phase === 'ended' && (
+              <Btn color="dark" size="sm" icon={LogOut} style={{ marginTop: 14 }} onClick={() => leaveRoom(code, uid, me.value.nameKey).then(() => navigate('/'))}>
+                Leave
+              </Btn>
+            )}
+          </div>
+        )
+        break
+      }
       const rows = rankedTeams(board.value, avg ? 'average' : 'total')
       const mine = rows.find((t) => t.id === teamId)
       const win = phase === 'ended' && mine?.rank === 1

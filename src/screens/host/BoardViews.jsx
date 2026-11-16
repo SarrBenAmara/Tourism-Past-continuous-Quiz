@@ -1,10 +1,11 @@
-import { Trophy as TrophyIcon, Star } from 'lucide-react'
+import { Trophy as TrophyIcon, Star, Crown } from 'lucide-react'
 import { Logo, Trophy } from '../../components/Brand.jsx'
-import { TeamIcon, teamVars } from '../../components/ui.jsx'
+import { TeamIcon, teamVars, rankVars } from '../../components/ui.jsx'
 import { rankedTeams } from '../../lib/gameLogic.js'
 
 /** Animated team leaderboard (Screen 8). */
-export function LeaderboardView({ board, meta, topPlayers = [], state }) {
+export function LeaderboardView({ board, meta, topPlayers = [], state, rankedPlayers = [] }) {
+  if (meta.mode === 'individual') return <SoloLeaderboard players={rankedPlayers} state={state} />
   const rankBy = meta.rankBy === 'average' ? 'average' : 'total'
   const rows = rankedTeams(board, rankBy)
   const key = rankBy === 'average' ? 'avg' : 'total'
@@ -70,7 +71,8 @@ function StarPlayers({ players }) {
 }
 
 /** End-of-game celebration with trophy and podium. */
-export function FinalView({ board, meta, topPlayers = [] }) {
+export function FinalView({ board, meta, topPlayers = [], rankedPlayers = [] }) {
+  if (meta.mode === 'individual') return <SoloFinal players={rankedPlayers} />
   const rankBy = meta.rankBy === 'average' ? 'average' : 'total'
   const key = rankBy === 'average' ? 'avg' : 'total'
   const rows = rankedTeams(board, rankBy)
@@ -106,6 +108,85 @@ export function FinalView({ board, meta, topPlayers = [] }) {
           <Star style={{ width: '1em', verticalAlign: '-0.15em', color: 'var(--gold)' }} fill="currentColor" aria-hidden="true" /> Top player
           {topPlayers.filter((p) => p.total === topPlayers[0].total).length > 1 ? 's' : ''}:{' '}
           {topPlayers.filter((p) => p.total === topPlayers[0].total).map((p) => p.name).join(', ')} ({topPlayers[0].total} pts)
+        </p>
+      )}
+    </>
+  )
+}
+
+const initial = (name) => (name || '?').trim().charAt(0).toUpperCase()
+
+function PlayerAvatar({ rank, name }) {
+  return (
+    <span className="board-row__icon" style={{ ...rankVars(rank), fontFamily: 'var(--display)', fontWeight: 800 }}>
+      {rank === 1 ? <Crown /> : initial(name)}
+    </span>
+  )
+}
+
+/** Individual Mode leaderboard: top 6 players with animated bars. */
+function SoloLeaderboard({ players, state }) {
+  const top = players.slice(0, 6)
+  const max = Math.max(1, ...top.map((p) => p.total))
+  return (
+    <>
+      <Logo variant="bar" />
+      <h2 className="big-title">
+        <TrophyIcon style={{ width: '0.9em', height: '0.9em', verticalAlign: '-0.1em', color: 'var(--gold)' }} aria-hidden="true" /> Leaderboard
+      </h2>
+      <p className="sub-title">After question {state?.qNumber} of {state?.total}</p>
+      <div className="board board--solo" style={{ maxWidth: 1000, marginTop: 14 }}>
+        {top.map((p) => (
+          <div key={p.uid} className={`board-row board-row--${p.rank}`} style={rankVars(p.rank)}>
+            <span className="board-row__rank">{p.rank}</span>
+            <PlayerAvatar rank={p.rank} name={p.name} />
+            <span className="board-row__name">
+              {p.name}
+              <small>{p.correct || 0} correct</small>
+            </span>
+            <span className="board-row__bar" aria-hidden="true">
+              <i style={{ width: `${(p.total / max) * 100}%` }} />
+            </span>
+            <span className="board-row__pts">{p.total} pts</span>
+          </div>
+        ))}
+      </div>
+      {players.length > top.length && (
+        <p className="sub-title" style={{ marginTop: 10 }}>
+          …and {players.length - top.length} more {players.length - top.length === 1 ? 'player' : 'players'} – check your phone for your place!
+        </p>
+      )}
+    </>
+  )
+}
+
+/** Individual Mode finale: podium of the top three players. */
+function SoloFinal({ players }) {
+  const winners = players.filter((p) => p.rank === 1)
+  const podium = [players[1], players[0], players[2]].filter(Boolean)
+  const heights = { 1: 'clamp(110px, 19vh, 220px)', 2: 'clamp(80px, 13vh, 160px)', 3: 'clamp(60px, 9vh, 120px)' }
+  const title = !winners.length ? 'Game over!' : winners.length > 1 ? `It's a tie: ${winners.map((w) => w.name).join(' & ')}!` : `${winners[0].name} wins!`
+  return (
+    <>
+      <Logo variant="bar" />
+      <Trophy className="trophy" style={{ marginTop: 6 }} />
+      <h2 className="big-title" style={{ marginTop: 0 }}>{title}</h2>
+      <p className="sub-title">Congratulations, travellers! Thank you for playing.</p>
+      <div className="podium" style={{ marginTop: 18 }}>
+        {podium.map((p) => (
+          <div key={p.uid} className="podium__col" style={rankVars(p.rank)}>
+            <span style={{ fontSize: 'clamp(26px, 3vw, 46px)' }}>
+              <PlayerAvatar rank={p.rank} name={p.name} />
+            </span>
+            <span className="podium__name">{p.name}</span>
+            <span className="podium__pts">{p.total} pts</span>
+            <div className="podium__block" style={{ height: heights[p.rank] || '50px' }}>{p.rank}</div>
+          </div>
+        ))}
+      </div>
+      {players.length > 3 && (
+        <p className="sub-title" style={{ marginTop: 10 }}>
+          {players.slice(3, 5).map((p) => `${p.rank}th: ${p.name} – ${p.total} pts`).join('   ·   ')}
         </p>
       )}
     </>

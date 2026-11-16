@@ -6,7 +6,7 @@ import {
 import { db } from '../firebase/config.js'
 import {
   randomRoomCode, makeTeams, scoreQuestion, totalsFromResults, teamBoard,
-  buildGameQuestions, ROOM_TTL_MS,
+  buildGameQuestions, ROOM_TTL_MS, playerRanks,
 } from '../lib/gameLogic.js'
 
 const r = (path) => ref(db, path)
@@ -17,6 +17,7 @@ export async function isTeacher(uid) {
 }
 
 export const DEFAULT_SETTINGS = {
+  mode: 'individual', // 'individual' | 'team'
   teamCount: 3,
   timerSec: 20,
   speedBonus: true,
@@ -38,6 +39,7 @@ export async function createRoom(uid, settings = {}) {
         meta: {
           hostUid: uid,
           createdAt: serverTimestamp(),
+          mode: s.mode,
           teamCount: s.teamCount,
           timerSec: s.timerSec,
           speedBonus: s.speedBonus,
@@ -122,6 +124,12 @@ export function assignTeams(code, map) {
   const u = {}
   Object.entries(map).forEach(([uid, t]) => (u[`teams/${uid}`] = t))
   return update(r(`rooms/${code}`), u)
+}
+
+/** Individual Mode: everyone plays alone. Internally all players share group "A" (needed by the answer rules). */
+export function assignIndividual(code, playerUids) {
+  const teams = Object.fromEntries(playerUids.map((uid) => [uid, 'A']))
+  return update(r(`rooms/${code}`), { teams })
 }
 
 export function backToLobby(code) {
@@ -230,10 +238,13 @@ export async function closeAndScore(code, room) {
   const allResults = { ...(resultsSnap.val() || {}), [state.qKey]: results }
   const scores = totalsFromResults(allResults)
   const board = teamBoard({ scores, teams, teamCount: meta.teamCount, rankBy: meta.rankBy })
+  const { ranks, count } = playerRanks(scores, teams)
   await update(r(`rooms/${code}`), {
     [`results/${state.qKey}`]: results,
     scores,
     teamBoard: board,
+    'state/ranks': ranks,
+    'state/rankCount': count,
     'state/phase': 'reveal',
     'state/reveal': { correct: q.answer, counts },
     'state/updatedAt': serverTimestamp(),
@@ -244,8 +255,10 @@ export async function closeAndScore(code, room) {
 export async function recomputeBoard(code, meta) {
   const [resultsSnap, teamsSnap] = await Promise.all([get(r(`rooms/${code}/results`)), get(r(`rooms/${code}/teams`))])
   const scores = totalsFromResults(resultsSnap.val() || {})
-  const board = teamBoard({ scores, teams: teamsSnap.val() || {}, teamCount: meta.teamCount, rankBy: meta.rankBy })
-  return update(r(`rooms/${code}`), { scores, teamBoard: board })
+  const teams = teamsSnap.val() || {}
+  const board = teamBoard({ scores, teams, teamCount: meta.teamCount, rankBy: meta.rankBy })
+  const { ranks, count } = playerRanks(scores, teams)
+  return update(r(`rooms/${code}`), { scores, teamBoard: board, 'state/ranks': ranks, 'state/rankCount': count })
 }
 
 export function showLeaderboard(code) {

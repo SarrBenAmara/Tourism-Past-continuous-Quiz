@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import confetti from 'canvas-confetti'
-import { Compass, Camera, Binoculars, Map as MapIcon, Volume2, VolumeX, Maximize, Minimize, Home } from 'lucide-react'
-import { TEAMS, ANSWER_LETTERS } from '../lib/gameLogic.js'
+import { Compass, Camera, Binoculars, Map as MapIcon, Volume2, VolumeX, Maximize, Minimize, Home, Crown } from 'lucide-react'
+import { TEAMS, ANSWER_LETTERS, rankColor } from '../lib/gameLogic.js'
 import { isMuted, setMuted, onMuteChange } from '../lib/sound.js'
 import { prefersReducedMotion } from '../lib/motion.js'
 import { navigate } from '../lib/router.js'
@@ -51,6 +51,33 @@ export function TeamChip({ id, points, sub }) {
         <span className="team-chip__pts">
           {points ?? 0} pts{sub ? <small style={{ fontSize: '0.6em', marginLeft: 6, opacity: 0.7 }}>{sub}</small> : null}
         </span>
+      </span>
+    </div>
+  )
+}
+
+export const rankVars = (rank) => ({ '--tc': rankColor(rank).color, '--td': rankColor(rank).dark })
+
+/** Individual Mode version of the score chip: rank medal, player name, points. */
+export function LeaderChip({ rank, name, points }) {
+  const prev = useRef(points)
+  const [bump, setBump] = useState(false)
+  useEffect(() => {
+    if (points !== prev.current) {
+      prev.current = points
+      setBump(true)
+      const t = setTimeout(() => setBump(false), 450)
+      return () => clearTimeout(t)
+    }
+  }, [points])
+  return (
+    <div className={`team-chip ${bump ? 'is-bump' : ''}`} style={rankVars(rank)}>
+      <span className="team-chip__icon" style={{ fontFamily: 'var(--display)', fontWeight: 800, fontSize: '1.15em' }}>
+        {rank === 1 ? <Crown style={{ width: '62%', height: '62%' }} aria-label="First place" /> : rank}
+      </span>
+      <span className="team-chip__text">
+        <span className="team-chip__name">{name}</span>
+        <span className="team-chip__pts">{points ?? 0} pts</span>
       </span>
     </div>
   )

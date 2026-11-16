@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import QRCode from 'qrcode'
 import {
-  Copy, Check, Gamepad2, Shuffle, Play, Users, Laptop, Smartphone, X, QrCode, Settings2, ArrowLeft, Timer,
+  Copy, Check, Gamepad2, Shuffle, Play, Users, User, Laptop, Smartphone, X, QrCode, Settings2, ArrowLeft, Timer,
 } from 'lucide-react'
 import { Logo } from '../../components/Brand.jsx'
 import { Btn, TeamIcon, teamVars, Modal } from '../../components/ui.jsx'
@@ -38,7 +38,8 @@ export default function LobbyView({
 
   const ids = teamIdsFor(meta.teamCount)
   const online = players.filter((p) => p.online).length
-  const inTeams = phase === 'teams'
+  const individual = meta.mode === 'individual'
+  const inTeams = phase === 'teams' && !individual
 
   return (
     <>
@@ -69,7 +70,27 @@ export default function LobbyView({
                     <QrCode style={{ width: 22, verticalAlign: '-5px' }} aria-hidden="true" /> QR
                   </button>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 10 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  <div className="card">
+                    <h3 className="card__title">Game Mode</h3>
+                    <div className="opt-row opt-row--tight">
+                      <button className={`opt ${individual ? 'is-on' : ''}`} onClick={() => onSetting({ mode: 'individual' })}>
+                        <User style={{ width: 18, verticalAlign: '-3px' }} aria-hidden="true" /> Individual
+                      </button>
+                      <button className={`opt ${!individual ? 'is-on' : ''}`} onClick={() => onSetting({ mode: 'team' })}>
+                        <Users style={{ width: 18, verticalAlign: '-3px' }} aria-hidden="true" /> Teams
+                      </button>
+                    </div>
+                    {!individual && (
+                      <div className="opt-row opt-row--tight" style={{ marginTop: 10 }} aria-label="Number of teams">
+                        {[2, 3, 4].map((n) => (
+                          <button key={n} className={`opt ${meta.teamCount === n ? 'is-on' : ''}`} onClick={() => onSetting({ teamCount: n })}>
+                            {n} teams
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="card">
                     <h3 className="card__title">
                       <Timer style={{ width: 20, verticalAlign: '-3px' }} aria-hidden="true" /> Question Timer
@@ -78,16 +99,6 @@ export default function LobbyView({
                       {TIMER_OPTIONS.map((s) => (
                         <button key={s} className={`opt ${meta.timerSec === s ? 'is-on' : ''}`} onClick={() => onSetting({ timerSec: s })}>
                           {s}s
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="card">
-                    <h3 className="card__title">Number of Teams</h3>
-                    <div className="opt-row opt-row--tight">
-                      {[2, 3, 4].map((n) => (
-                        <button key={n} className={`opt ${meta.teamCount === n ? 'is-on' : ''}`} onClick={() => onSetting({ teamCount: n })} aria-label={`${n} teams`}>
-                          {n}
                         </button>
                       ))}
                     </div>
@@ -114,7 +125,9 @@ export default function LobbyView({
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 14px' }}>
                     <Switch label="Speed bonus (up to +50)" checked={meta.speedBonus !== false} onChange={(v) => onSetting({ speedBonus: v })} />
-                    <Switch label="Rank by average per member" checked={meta.rankBy === 'average'} onChange={(v) => onSetting({ rankBy: v ? 'average' : 'total' })} />
+                    {!individual && (
+                      <Switch label="Rank by average per member" checked={meta.rankBy === 'average'} onChange={(v) => onSetting({ rankBy: v ? 'average' : 'total' })} />
+                    )}
                     <Switch label="Allow late joiners" checked={meta.lateJoin !== false} onChange={(v) => onSetting({ lateJoin: v })} />
                     <Switch label="Close when all have answered" checked={meta.autoClose !== false} onChange={(v) => onSetting({ autoClose: v })} />
                     <Switch label="Shuffle question order" checked={Boolean(meta.shuffleOrder)} onChange={(v) => onSetting({ shuffleOrder: v })} />
@@ -182,9 +195,11 @@ export default function LobbyView({
                 </Btn>
               </>
             ) : (
-              <Btn color="blue" icon={Shuffle} onClick={onGenerate} disabled={busy || players.length === 0}>
-                Generate Teams
-              </Btn>
+              !individual && (
+                <Btn color="blue" icon={Shuffle} onClick={onGenerate} disabled={busy || players.length === 0}>
+                  Generate Teams
+                </Btn>
+              )
             )}
             <Btn size="lg" icon={Play} onClick={onStart} disabled={busy || players.length === 0}>
               Start Game
@@ -208,9 +223,9 @@ export default function LobbyView({
             </span>
           </div>
           <div className="step">
-            <Users className="step__icon" aria-hidden="true" />
+            {individual ? <User className="step__icon" aria-hidden="true" /> : <Users className="step__icon" aria-hidden="true" />}
             <span className="step__num">3</span>
-            <span>Teams are created at random and the quiz begins!</span>
+            <span>{individual ? 'Everyone plays for themselves – the quiz begins!' : 'Teams are created at random and the quiz begins!'}</span>
           </div>
         </div>
       )}
